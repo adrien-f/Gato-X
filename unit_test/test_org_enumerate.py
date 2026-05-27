@@ -109,3 +109,105 @@ async def test_admin_enum():
 
     assert len(organization.secrets) == 2
     assert len(organization.runners) == 1
+
+
+# ---------------------------------------------------------------------------
+# OrganizationEnum.admin_enum — skip flags
+# ---------------------------------------------------------------------------
+
+
+async def test_admin_enum_skip_runners():
+    """When skip_runners=True, runner enumeration is skipped but secrets
+    are still enumerated."""
+    mock_api = AsyncMock()
+
+    organization = Organization(
+        TEST_ORG_DATA, user_scopes=["repo", "workflow", "admin:org"]
+    )
+
+    mock_api.org.get_org_secrets.return_value = [
+        {
+            "name": "DEPLOY_TOKEN",
+            "created_at": "2019-08-10T14:59:22Z",
+            "updated_at": "2020-01-10T14:59:22Z",
+            "visibility": "all",
+        },
+    ]
+
+    gh_enumeration_runner = OrganizationEnum(mock_api)
+
+    await gh_enumeration_runner.admin_enum(
+        organization, skip_runners=True, skip_secrets=False
+    )
+
+    # Runners should NOT have been queried
+    mock_api.org.check_org_runners.assert_not_called()
+    assert len(organization.runners) == 0
+
+    # Secrets SHOULD have been queried
+    mock_api.org.get_org_secrets.assert_called_once_with(organization.name)
+    assert len(organization.secrets) == 1
+
+
+async def test_admin_enum_skip_secrets():
+    """When skip_secrets=True, secrets enumeration is skipped but runners
+    are still enumerated."""
+    mock_api = AsyncMock()
+
+    organization = Organization(
+        TEST_ORG_DATA, user_scopes=["repo", "workflow", "admin:org"]
+    )
+
+    mock_api.org.check_org_runners.return_value = {
+        "total_count": 1,
+        "runners": [
+            {
+                "id": 21,
+                "name": "ghrunner-test",
+                "os": "Linux",
+                "status": "online",
+                "busy": False,
+                "labels": [
+                    {"id": 1, "name": "self-hosted", "type": "read-only"},
+                    {"id": 2, "name": "Linux", "type": "read-only"},
+                    {"id": 3, "name": "X64", "type": "read-only"},
+                ],
+            }
+        ],
+    }
+
+    gh_enumeration_runner = OrganizationEnum(mock_api)
+
+    await gh_enumeration_runner.admin_enum(
+        organization, skip_runners=False, skip_secrets=True
+    )
+
+    # Runners SHOULD have been queried
+    mock_api.org.check_org_runners.assert_called_once_with(organization.name)
+    assert len(organization.runners) == 1
+
+    # Secrets should NOT have been queried
+    mock_api.org.get_org_secrets.assert_not_called()
+    assert len(organization.secrets) == 0
+
+
+async def test_admin_enum_skip_both():
+    """When both skip_runners=True and skip_secrets=True, neither runners
+    nor secrets are enumerated."""
+    mock_api = AsyncMock()
+
+    organization = Organization(
+        TEST_ORG_DATA, user_scopes=["repo", "workflow", "admin:org"]
+    )
+
+    gh_enumeration_runner = OrganizationEnum(mock_api)
+
+    await gh_enumeration_runner.admin_enum(
+        organization, skip_runners=True, skip_secrets=True
+    )
+
+    # Neither API should be called
+    mock_api.org.check_org_runners.assert_not_called()
+    mock_api.org.get_org_secrets.assert_not_called()
+    assert len(organization.runners) == 0
+    assert len(organization.secrets) == 0

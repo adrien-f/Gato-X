@@ -388,6 +388,8 @@ async def enumerate_finegrained(args, parser):
         socks_proxy=args.socks_proxy,
         http_proxy=args.http_proxy,
         skip_log=args.skip_runners,
+        skip_secrets=args.skip_secrets,
+        skip_admin_runners=args.skip_admin_runners,
         github_url=args.api_url,
         ignore_workflow_run=args.ignore_workflow_run,
     )
@@ -429,6 +431,8 @@ async def enumerate_classic(args, parser):
         socks_proxy=args.socks_proxy,
         http_proxy=args.http_proxy,
         skip_log=args.skip_runners,
+        skip_secrets=args.skip_secrets,
+        skip_admin_runners=args.skip_admin_runners,
         github_url=args.api_url,
         ignore_workflow_run=args.ignore_workflow_run,
     )
@@ -654,6 +658,8 @@ async def app(args, parser):
         socks_proxy=args.socks_proxy,
         http_proxy=args.http_proxy,
         skip_log=args.skip_runners,
+        skip_secrets=args.skip_secrets,
+        skip_admin_runners=args.skip_admin_runners,
         github_url=args.api_url,
     )
 

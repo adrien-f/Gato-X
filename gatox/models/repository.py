@@ -34,6 +34,7 @@ class Repository:
         self.accessible_runners: list[Runner] = []
         self.runners: list[Runner] = []
         self.risks = {}
+        self.workflow_count = 0
 
     def is_admin(self):
         return self.permission_data.get("admin", False)
@@ -126,6 +127,9 @@ class Repository:
         representation = {
             "name": self.name,
             "enum_time": self.enum_time.ctime(),
+            "description": self.repo_data.get("description", ""),
+            "pushed_at": self.repo_data.get("pushed_at", ""),
+            "workflow_count": self.workflow_count,
             "permissions": self.permission_data,
             "can_fork": self.can_fork(),
             "stars": self.repo_data["stargazers_count"],

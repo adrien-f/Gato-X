@@ -22,6 +22,8 @@ class AppEnumerator:
         http_proxy: str | None = None,
         github_url: str = "https://api.github.com",
         skip_log: bool = True,
+        skip_secrets: bool = False,
+        skip_admin_runners: bool = False,
         ignore_workflow_run: bool = False,
     ):
         """Initialize App Enumerator.
@@ -33,6 +35,8 @@ class AppEnumerator:
             http_proxy: HTTP proxy configuration
             github_url: GitHub API URL
             skip_log: Skip runner log analysis
+            skip_secrets: Skip secrets enumeration
+            skip_admin_runners: Skip admin-level runner enumeration via the API
             ignore_workflow_run: Ignore workflow_run triggers
         """
         self.app_id = app_id
@@ -41,6 +45,8 @@ class AppEnumerator:
         self.http_proxy = http_proxy
         self.github_url = github_url
         self.skip_log = skip_log
+        self.skip_secrets = skip_secrets
+        self.skip_admin_runners = skip_admin_runners
         self.ignore_workflow_run = ignore_workflow_run
 
         # Initialize App authentication
@@ -182,6 +188,8 @@ class AppEnumerator:
             socks_proxy=self.socks_proxy,
             http_proxy=self.http_proxy,
             skip_log=self.skip_log,
+            skip_secrets=self.skip_secrets,
+            skip_admin_runners=self.skip_admin_runners,
             github_url=self.github_url,
             ignore_workflow_run=self.ignore_workflow_run,
             finegrained_permisions=(

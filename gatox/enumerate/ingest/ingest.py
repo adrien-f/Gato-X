@@ -254,6 +254,8 @@ class DataIngestor:
             repo_wrapper = Repository(repo_data)
             cache.set_repository(repo_wrapper)
 
+            workflow_count = 0
+
             if result["object"]:
                 for yml_node in result["object"]["entries"]:
                     yml_name = yml_node["name"]
@@ -271,6 +273,9 @@ class DataIngestor:
                                 continue
 
                             cache.set_workflow(owner, yml_name, wf_wrapper)
+                            workflow_count += 1
                             await WorkflowGraphBuilder().build_graph_from_yaml(
                                 wf_wrapper, repo_wrapper
                             )
+
+            repo_wrapper.workflow_count = workflow_count

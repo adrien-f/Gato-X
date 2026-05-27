@@ -69,29 +69,36 @@ class OrganizationEnum:
         else:
             return org_public_repos
 
-    async def admin_enum(self, organization: Organization):
+    async def admin_enum(
+        self,
+        organization: Organization,
+        skip_runners: bool = False,
+        skip_secrets: bool = False,
+    ):
         """Enumeration tasks to perform if the user is an org admin and the
         token has the necessary scopes.
         """
         if organization.org_admin_scopes and organization.org_admin_user:
-            runners = await self.api.org.check_org_runners(organization.name)
-            if runners:
-                org_runners = [
-                    Runner(
-                        runner["name"],
-                        machine_name=None,
-                        os=runner["os"],
-                        status=runner["status"],
-                        labels=runner["labels"],
-                    )
-                    for runner in runners["runners"]
-                ]
-                organization.set_runners(org_runners)
+            if not skip_runners:
+                runners = await self.api.org.check_org_runners(organization.name)
+                if runners:
+                    org_runners = [
+                        Runner(
+                            runner["name"],
+                            machine_name=None,
+                            os=runner["os"],
+                            status=runner["status"],
+                            labels=runner["labels"],
+                        )
+                        for runner in runners["runners"]
+                    ]
+                    organization.set_runners(org_runners)
 
-            org_secrets = await self.api.org.get_org_secrets(organization.name)
-            if org_secrets:
-                org_secrets = [
-                    Secret(secret, organization.name) for secret in org_secrets
-                ]
+            if not skip_secrets:
+                org_secrets = await self.api.org.get_org_secrets(organization.name)
+                if org_secrets:
+                    org_secrets = [
+                        Secret(secret, organization.name) for secret in org_secrets
+                    ]
 
-                organization.set_secrets(org_secrets)
+                    organization.set_secrets(org_secrets)

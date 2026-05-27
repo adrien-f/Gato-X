@@ -154,6 +154,8 @@ async def test_cli_old_token(mock_enumerator, capfd):
         socks_proxy=None,
         http_proxy=None,
         skip_log=False,
+        skip_secrets=False,
+        skip_admin_runners=False,
         github_url=None,
         ignore_workflow_run=False,
     )
@@ -684,3 +686,195 @@ async def test_payload_only_with_valid_target_params(mock_payload):
         ]
     )
     mock_payload.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# CLI flag parsing — --skip-secrets / --skip-admin-runners
+# ---------------------------------------------------------------------------
+
+
+@mock.patch("gatox.cli.cli.Enumerator")
+async def test_cli_skip_secrets_long_flag(mock_enumerator):
+    """--skip-secrets should be parsed and forwarded to the Enumerator."""
+    os.environ["GH_TOKEN"] = "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+    mock_instance = mock_enumerator.return_value
+    mock_instance.api = mock.MagicMock()
+    mock_instance.api.user.check_user = AsyncMock(
+        return_value={
+            "user": "testUser",
+            "scopes": ["repo", "workflow"],
+        }
+    )
+    mock_instance.api.user.get_user_type = AsyncMock(return_value="Organization")
+    mock_instance.enumerate_organization = AsyncMock(return_value={"testOrg": "data"})
+    mock_instance.user_perms = {"user": "testUser", "scopes": ["repo", "workflow"]}
+
+    await cli.cli(["enumerate", "-t", "test", "--skip-secrets"])
+
+    mock_enumerator.assert_called_once_with(
+        "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        socks_proxy=None,
+        http_proxy=None,
+        skip_log=False,
+        skip_secrets=True,
+        skip_admin_runners=False,
+        github_url=None,
+        ignore_workflow_run=False,
+    )
+
+
+@mock.patch("gatox.cli.cli.Enumerator")
+async def test_cli_skip_secrets_short_flag(mock_enumerator):
+    """-ss should be parsed and forwarded to the Enumerator."""
+    os.environ["GH_TOKEN"] = "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+    mock_instance = mock_enumerator.return_value
+    mock_instance.api = mock.MagicMock()
+    mock_instance.api.user.check_user = AsyncMock(
+        return_value={
+            "user": "testUser",
+            "scopes": ["repo", "workflow"],
+        }
+    )
+    mock_instance.api.user.get_user_type = AsyncMock(return_value="Organization")
+    mock_instance.enumerate_organization = AsyncMock(return_value={"testOrg": "data"})
+    mock_instance.user_perms = {"user": "testUser", "scopes": ["repo", "workflow"]}
+
+    await cli.cli(["enumerate", "-t", "test", "-ss"])
+
+    mock_enumerator.assert_called_once_with(
+        "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        socks_proxy=None,
+        http_proxy=None,
+        skip_log=False,
+        skip_secrets=True,
+        skip_admin_runners=False,
+        github_url=None,
+        ignore_workflow_run=False,
+    )
+
+
+@mock.patch("gatox.cli.cli.Enumerator")
+async def test_cli_skip_admin_runners_long_flag(mock_enumerator):
+    """--skip-admin-runners should be parsed and forwarded to the Enumerator."""
+    os.environ["GH_TOKEN"] = "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+    mock_instance = mock_enumerator.return_value
+    mock_instance.api = mock.MagicMock()
+    mock_instance.api.user.check_user = AsyncMock(
+        return_value={
+            "user": "testUser",
+            "scopes": ["repo", "workflow"],
+        }
+    )
+    mock_instance.api.user.get_user_type = AsyncMock(return_value="Organization")
+    mock_instance.enumerate_organization = AsyncMock(return_value={"testOrg": "data"})
+    mock_instance.user_perms = {"user": "testUser", "scopes": ["repo", "workflow"]}
+
+    await cli.cli(["enumerate", "-t", "test", "--skip-admin-runners"])
+
+    mock_enumerator.assert_called_once_with(
+        "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        socks_proxy=None,
+        http_proxy=None,
+        skip_log=False,
+        skip_secrets=False,
+        skip_admin_runners=True,
+        github_url=None,
+        ignore_workflow_run=False,
+    )
+
+
+@mock.patch("gatox.cli.cli.Enumerator")
+async def test_cli_skip_admin_runners_short_flag(mock_enumerator):
+    """-sar should be parsed and forwarded to the Enumerator."""
+    os.environ["GH_TOKEN"] = "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+    mock_instance = mock_enumerator.return_value
+    mock_instance.api = mock.MagicMock()
+    mock_instance.api.user.check_user = AsyncMock(
+        return_value={
+            "user": "testUser",
+            "scopes": ["repo", "workflow"],
+        }
+    )
+    mock_instance.api.user.get_user_type = AsyncMock(return_value="Organization")
+    mock_instance.enumerate_organization = AsyncMock(return_value={"testOrg": "data"})
+    mock_instance.user_perms = {"user": "testUser", "scopes": ["repo", "workflow"]}
+
+    await cli.cli(["enumerate", "-t", "test", "-sar"])
+
+    mock_enumerator.assert_called_once_with(
+        "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        socks_proxy=None,
+        http_proxy=None,
+        skip_log=False,
+        skip_secrets=False,
+        skip_admin_runners=True,
+        github_url=None,
+        ignore_workflow_run=False,
+    )
+
+
+@mock.patch("gatox.cli.cli.Enumerator")
+async def test_cli_defaults_skip_flags_to_false(mock_enumerator):
+    """When neither --skip-secrets nor --skip-admin-runners is given, both
+    should default to False."""
+    os.environ["GH_TOKEN"] = "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+    mock_instance = mock_enumerator.return_value
+    mock_instance.api = mock.MagicMock()
+    mock_instance.api.user.check_user = AsyncMock(
+        return_value={
+            "user": "testUser",
+            "scopes": ["repo", "workflow"],
+        }
+    )
+    mock_instance.api.user.get_user_type = AsyncMock(return_value="Organization")
+    mock_instance.enumerate_organization = AsyncMock(return_value={"testOrg": "data"})
+    mock_instance.user_perms = {"user": "testUser", "scopes": ["repo", "workflow"]}
+
+    await cli.cli(["enumerate", "-t", "test"])
+
+    mock_enumerator.assert_called_once_with(
+        "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        socks_proxy=None,
+        http_proxy=None,
+        skip_log=False,
+        skip_secrets=False,
+        skip_admin_runners=False,
+        github_url=None,
+        ignore_workflow_run=False,
+    )
+
+
+@mock.patch("gatox.cli.cli.Enumerator")
+async def test_cli_both_skip_flags_together(mock_enumerator):
+    """Both --skip-secrets and --skip-admin-runners can be used together."""
+    os.environ["GH_TOKEN"] = "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+    mock_instance = mock_enumerator.return_value
+    mock_instance.api = mock.MagicMock()
+    mock_instance.api.user.check_user = AsyncMock(
+        return_value={
+            "user": "testUser",
+            "scopes": ["repo", "workflow"],
+        }
+    )
+    mock_instance.api.user.get_user_type = AsyncMock(return_value="Organization")
+    mock_instance.enumerate_organization = AsyncMock(return_value={"testOrg": "data"})
+    mock_instance.user_perms = {"user": "testUser", "scopes": ["repo", "workflow"]}
+
+    await cli.cli(["enumerate", "-t", "test", "--skip-secrets", "--skip-admin-runners"])
+
+    mock_enumerator.assert_called_once_with(
+        "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        socks_proxy=None,
+        http_proxy=None,
+        skip_log=False,
+        skip_secrets=True,
+        skip_admin_runners=True,
+        github_url=None,
+        ignore_workflow_run=False,
+    )

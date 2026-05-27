@@ -154,3 +154,17 @@ def configure_parser_enumerate(parser):
         action="store_true",
         default=False,
     )
+
+    parser.add_argument(
+        "--skip-secrets",
+        "-ss",
+        action="store_true",
+        help="Skip secrets enumeration for repositories and organizations.",
+    )
+
+    parser.add_argument(
+        "--skip-admin-runners",
+        "-sar",
+        action="store_true",
+        help="Skip admin-level self-hosted runner enumeration via the API.",
+    )

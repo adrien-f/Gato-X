@@ -39,6 +39,8 @@ class Enumerator:
         socks_proxy: str | None = None,
         http_proxy: str | None = None,
         skip_log: bool = False,
+        skip_secrets: bool = False,
+        skip_admin_runners: bool = False,
         github_url: str | None = None,
         output_json: str | None = None,
         ignore_workflow_run: bool = False,
@@ -55,6 +57,10 @@ class Enumerator:
             Defaults to None.
             skip_log (bool, optional): If set, then run logs will not be
             downloaded.
+            skip_secrets (bool, optional): If set, then secrets enumeration
+            will be skipped.
+            skip_admin_runners (bool, optional): If set, then admin-level
+            runner enumeration via the API will be skipped.
             output_json (str, optional): JSON file to output enumeration
             results.
             ignore_workflow_run (bool, optional): If set, then
@@ -79,13 +85,15 @@ class Enumerator:
         self.socks_proxy = socks_proxy
         self.http_proxy = http_proxy
         self.skip_log = skip_log
+        self.skip_secrets = skip_secrets
+        self.skip_admin_runners = skip_admin_runners
         self.user_perms = None
         self.github_url = github_url
         self.output_json = output_json
         self.ignore_workflow_run = ignore_workflow_run
         self.finegrained_permissions = finegrained_permisions
 
-        self.repo_e = RepositoryEnum(self.api, skip_log)
+        self.repo_e = RepositoryEnum(self.api, skip_log, skip_secrets)
         self.org_e = OrganizationEnum(self.api)
 
     async def __setup_user_info(self):
@@ -432,7 +440,11 @@ class Enumerator:
         Output.result(f"Enumerating the {Output.bright(org)} organization!")
 
         if organization.org_admin_user and organization.org_admin_scopes:
-            await self.org_e.admin_enum(organization)
+            await self.org_e.admin_enum(
+                organization,
+                skip_runners=self.skip_admin_runners,
+                skip_secrets=self.skip_secrets,
+            )
 
         Recommender.print_org_findings(user_perms["scopes"], organization)
 

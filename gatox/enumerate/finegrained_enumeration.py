@@ -17,6 +17,8 @@ class FineGrainedEnumerator(Enumerator):
         socks_proxy: str | None = None,
         http_proxy: str | None = None,
         skip_log: bool = False,
+        skip_secrets: bool = False,
+        skip_admin_runners: bool = False,
         github_url: str | None = None,
         output_json: str | None = None,
         ignore_workflow_run: bool = False,
@@ -33,6 +35,10 @@ class FineGrainedEnumerator(Enumerator):
             socks_proxy (str, optional): Proxy settings for SOCKS proxy.
             http_proxy (str, optional): Proxy settings for HTTP proxy.
             skip_log (bool, optional): If set, then run logs will not be downloaded.
+            skip_secrets (bool, optional): If set, then secrets enumeration
+            will be skipped.
+            skip_admin_runners (bool, optional): If set, then admin-level
+            runner enumeration via the API will be skipped.
             github_url (str, optional): GitHub API URL.
             output_json (str, optional): JSON file to output enumeration results.
             ignore_workflow_run (bool, optional): If set, then "workflow_run" triggers will be ignored.
@@ -45,6 +51,8 @@ class FineGrainedEnumerator(Enumerator):
             socks_proxy=socks_proxy,
             http_proxy=http_proxy,
             skip_log=skip_log,
+            skip_secrets=skip_secrets,
+            skip_admin_runners=skip_admin_runners,
             github_url=github_url,
             output_json=output_json,
             ignore_workflow_run=ignore_workflow_run,

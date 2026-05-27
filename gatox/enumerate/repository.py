@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class RepositoryEnum:
     """Repository specific enumeration functionality."""
 
-    def __init__(self, api: Api, skip_log: bool):
+    def __init__(self, api: Api, skip_log: bool, skip_secrets: bool = False):
         """Initialize enumeration class with instantiated API wrapper and CLI
         parameters.
 
@@ -23,6 +23,7 @@ class RepositoryEnum:
         """
         self.api = api
         self.skip_log = skip_log
+        self.skip_secrets = skip_secrets
 
     async def perform_runlog_enumeration(
         self, repository: Repository, workflows: set | list
@@ -119,6 +120,9 @@ class RepositoryEnum:
             repository (Repository): Wrapper object created from calling the
             API and retrieving a repository.
         """
+        if self.skip_secrets:
+            return
+
         if repository.can_push():
             secrets = await self.api.repo.get_secrets(repository.name)
             wrapped_env_secrets = []

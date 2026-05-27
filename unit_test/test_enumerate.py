@@ -614,3 +614,183 @@ async def test_validate_only_with_public_repo_scope(mock_api, capfd):
     out, _ = capfd.readouterr()
     # Should not contain the warning about insufficient access
     assert "Token does not have sufficient access to list orgs!" not in out
+
+
+# ---------------------------------------------------------------------------
+# DataIngestor.construct_workflow_cache — workflow_count
+# ---------------------------------------------------------------------------
+
+
+@patch("gatox.enumerate.ingest.ingest.WorkflowGraphBuilder")
+@patch("gatox.enumerate.ingest.ingest.CacheManager")
+async def test_construct_workflow_cache_sets_workflow_count(
+    mock_cache_mgr_cls, mock_graph_builder_cls
+):
+    """construct_workflow_cache should count the valid workflow YAML entries
+    and set repo_wrapper.workflow_count accordingly."""
+    from gatox.enumerate.ingest.ingest import DataIngestor
+
+    # Set up the mock cache instance
+    mock_cache = AsyncMock()
+    mock_cache_mgr_cls.return_value = mock_cache
+
+    # Mock graph builder
+    mock_builder = AsyncMock()
+    mock_graph_builder_cls.return_value = mock_builder
+
+    # Build a GQL result with 2 workflow YAML entries
+    gql_result = [
+        {
+            "nameWithOwner": "testOrg/testRepo",
+            "url": "https://github.com/testOrg/testRepo",
+            "isPrivate": False,
+            "isFork": False,
+            "isArchived": False,
+            "forkingAllowed": True,
+            "pushedAt": "2023-01-01T00:00:00Z",
+            "defaultBranchRef": {"name": "main"},
+            "viewerPermission": "WRITE",
+            "stargazers": {"totalCount": 10},
+            "object": {
+                "entries": [
+                    {
+                        "name": "ci.yml",
+                        "type": "blob",
+                        "object": {
+                            "text": "name: CI\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hi\n",
+                        },
+                    },
+                    {
+                        "name": "deploy.yml",
+                        "type": "blob",
+                        "object": {
+                            "text": "name: Deploy\non: push\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo deploy\n",
+                        },
+                    },
+                ]
+            },
+        }
+    ]
+
+    await DataIngestor.construct_workflow_cache(gql_result)
+
+    # Cache should have set the repository
+    mock_cache.set_repository.assert_called_once()
+    repo_wrapper = mock_cache.set_repository.call_args[0][0]
+
+    # Workflow count should be 2 (both YAML entries were valid)
+    assert repo_wrapper.workflow_count == 2
+
+
+@patch("gatox.enumerate.ingest.ingest.WorkflowGraphBuilder")
+@patch("gatox.enumerate.ingest.ingest.CacheManager")
+async def test_construct_workflow_cache_counts_only_valid_ymls(
+    mock_cache_mgr_cls, mock_graph_builder_cls
+):
+    """Workflows that are invalid (e.g. dependabot configs) should not be
+    counted in workflow_count."""
+    from gatox.enumerate.ingest.ingest import DataIngestor
+
+    mock_cache = AsyncMock()
+    mock_cache_mgr_cls.return_value = mock_cache
+
+    mock_builder = AsyncMock()
+    mock_graph_builder_cls.return_value = mock_builder
+
+    # 3 entries: 2 valid YAML, 1 dependabot (invalid), 1 non-yaml (skipped)
+    gql_result = [
+        {
+            "nameWithOwner": "testOrg/testRepo",
+            "url": "https://github.com/testOrg/testRepo",
+            "isPrivate": False,
+            "isFork": False,
+            "isArchived": False,
+            "forkingAllowed": True,
+            "pushedAt": "2023-01-01T00:00:00Z",
+            "defaultBranchRef": {"name": "main"},
+            "viewerPermission": "WRITE",
+            "stargazers": {"totalCount": 10},
+            "object": {
+                "entries": [
+                    {
+                        "name": "ci.yml",
+                        "type": "blob",
+                        "object": {
+                            "text": "name: CI\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hi\n",
+                        },
+                    },
+                    {
+                        "name": "dependabot.yml",
+                        "type": "blob",
+                        "object": {
+                            "text": "version: 2\nupdates:\n  - package-ecosystem: npm\n    directory: /\n    schedule:\n      interval: weekly\n",
+                        },
+                    },
+                    {
+                        "name": "README.md",
+                        "type": "blob",
+                        "object": {"text": "# README\n"},
+                    },
+                ]
+            },
+        }
+    ]
+
+    await DataIngestor.construct_workflow_cache(gql_result)
+
+    repo_wrapper = mock_cache.set_repository.call_args[0][0]
+    # Only ci.yml is a valid workflow YAML
+    # dependabot.yml gets marked invalid, README.md is not .yml/.yaml
+    assert repo_wrapper.workflow_count == 1
+
+
+@patch("gatox.enumerate.ingest.ingest.WorkflowGraphBuilder")
+@patch("gatox.enumerate.ingest.ingest.CacheManager")
+async def test_construct_workflow_cache_zero_workflows(
+    mock_cache_mgr_cls, mock_graph_builder_cls
+):
+    """workflow_count should be 0 when there are no workflow YAML files."""
+    from gatox.enumerate.ingest.ingest import DataIngestor
+
+    mock_cache = AsyncMock()
+    mock_cache_mgr_cls.return_value = mock_cache
+
+    mock_builder = AsyncMock()
+    mock_graph_builder_cls.return_value = mock_builder
+
+    gql_result = [
+        {
+            "nameWithOwner": "testOrg/emptyRepo",
+            "url": "https://github.com/testOrg/emptyRepo",
+            "isPrivate": False,
+            "isFork": False,
+            "isArchived": False,
+            "forkingAllowed": True,
+            "pushedAt": "2023-01-01T00:00:00Z",
+            "defaultBranchRef": {"name": "main"},
+            "viewerPermission": "READ",
+            "stargazers": {"totalCount": 0},
+            "object": {"entries": []},
+        }
+    ]
+
+    await DataIngestor.construct_workflow_cache(gql_result)
+
+    repo_wrapper = mock_cache.set_repository.call_args[0][0]
+    assert repo_wrapper.workflow_count == 0
+
+
+@patch("gatox.enumerate.ingest.ingest.CacheManager")
+async def test_construct_workflow_cache_handles_none(mock_cache_mgr_cls):
+    """construct_workflow_cache should return early when yml_results is None."""
+    from gatox.enumerate.ingest.ingest import DataIngestor
+
+    mock_cache = AsyncMock()
+    mock_cache_mgr_cls.return_value = mock_cache
+
+    # Should not raise
+    await DataIngestor.construct_workflow_cache(None)
+
+    # Cache should never be touched
+    mock_cache.set_repository.assert_not_called()
+    mock_cache.set_workflow.assert_not_called()
