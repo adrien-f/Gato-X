@@ -46,6 +46,7 @@ class Enumerator:
         ignore_workflow_run: bool = False,
         finegrained_permisions: set | None = None,
         api_client: Api | None = None,
+        save_runlogs: str | None = None,
     ):
         """Initialize enumeration class with arguments sent by user.
 
@@ -67,6 +68,8 @@ class Enumerator:
             "workflow_run" triggers will be ignored.
             app_permissions (list, optional): List of permissions for GitHub App.
             api_client (Api, optional): An existing Api client instance.
+            save_runlogs (str, optional): Directory to save downloaded
+            run log zip files.
             Defaults to None.
         """
         if api_client:
@@ -92,8 +95,9 @@ class Enumerator:
         self.output_json = output_json
         self.ignore_workflow_run = ignore_workflow_run
         self.finegrained_permissions = finegrained_permisions
+        self.save_runlogs = save_runlogs
 
-        self.repo_e = RepositoryEnum(self.api, skip_log, skip_secrets)
+        self.repo_e = RepositoryEnum(self.api, skip_log, skip_secrets, save_runlogs)
         self.org_e = OrganizationEnum(self.api)
 
     async def __setup_user_info(self):

@@ -435,6 +435,7 @@ async def enumerate_classic(args, parser):
         skip_admin_runners=args.skip_admin_runners,
         github_url=args.api_url,
         ignore_workflow_run=args.ignore_workflow_run,
+        save_runlogs=args.save_runlogs,
     )
 
     exec_wrapper = Execution()
@@ -522,6 +523,9 @@ async def enumerate(args, parser):
             "--target/-t, --repository/-r, --repositories/-R, "
             "--self-enumeration, --validate or --commit."
         )
+
+    if args.skip_runners and args.save_runlogs:
+        parser.error("--skip-runners and --save-runlogs are mutually exclusive")
 
     if not (
         local_path

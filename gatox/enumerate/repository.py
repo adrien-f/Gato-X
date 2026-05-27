@@ -14,16 +14,27 @@ logger = logging.getLogger(__name__)
 class RepositoryEnum:
     """Repository specific enumeration functionality."""
 
-    def __init__(self, api: Api, skip_log: bool, skip_secrets: bool = False):
+    def __init__(
+        self,
+        api: Api,
+        skip_log: bool,
+        skip_secrets: bool = False,
+        save_runlogs: str | None = None,
+    ):
         """Initialize enumeration class with instantiated API wrapper and CLI
         parameters.
 
         Args:
             api (Api): GitHub API wraper object.
+            skip_log (bool): If True, skip run log enumeration.
+            skip_secrets (bool): If True, skip secrets enumeration.
+            save_runlogs (str, optional): Directory to save downloaded
+            run log zip files.
         """
         self.api = api
         self.skip_log = skip_log
         self.skip_secrets = skip_secrets
+        self.save_runlogs = save_runlogs
 
     async def perform_runlog_enumeration(
         self, repository: Repository, workflows: set | list
@@ -42,7 +53,7 @@ class RepositoryEnum:
         wf_runs = []
 
         wf_runs = await self.api.action.retrieve_run_logs(
-            repository.name, workflows=workflows
+            repository.name, workflows=workflows, save_runlogs_dir=self.save_runlogs
         )
 
         if wf_runs:

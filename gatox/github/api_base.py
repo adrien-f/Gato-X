@@ -324,20 +324,32 @@ class ApiBase:
 
         with zipfile.ZipFile(io.BytesIO(log_content)) as runres:
             for zipinfo in runres.infolist():
-                if re.match("[0-9]{1}_.*", zipinfo.filename):
+                # Match both directory-format (jobname/1_Set up job.txt)
+                # and flat-format (0_jobname.txt) setup files.
+                is_setup_file = (
+                    zipinfo.filename.endswith("/1_Set up job.txt")
+                    or zipinfo.filename == "1_Set up job.txt"
+                    or (
+                        re.match(r"[0-9]+_.*\.txt$", zipinfo.filename)
+                        and "/" not in zipinfo.filename
+                    )
+                )
+                if is_setup_file:
                     with runres.open(zipinfo) as run_setup:
-                        content = run_setup.read().decode()
-                        content_lines = content.split("\n")
+                        content = run_setup.read().decode("utf-8-sig")
+                        content_lines = content.splitlines()
                         if (
                             "Image Release: https://github.com/actions/runner-images"
                             in content
-                            or "Job is about to start running on the hosted runner: GitHub Actions"
+                            or "Job is about to start running on the hosted runner:"
                             in content
+                            or "Runner Image Provisioner" in content
                         ) and "1ES.Pool" not in content:
-                            # Larger runners look self-hosted but ship the
-                            # image marker, and "Job is about to start
-                            # running on hosted runner" similarly tells us
-                            # this is a GitHub-hosted runner.
+                            # Larger runners will appear to be self-hosted, but
+                            # they will have the image name. Skip if we see this.
+                            # If the log contains "job is about to start running on hosted runner",
+                            # or "Runner Image Provisioner", the runner is a GitHub hosted runner
+                            # so we can skip it.
                             continue
                         elif (
                             "Self-hosted runners in the repository are disabled"
@@ -345,29 +357,43 @@ class ApiBase:
                         ):
                             break
                         index = 0
-                        while index < len(content_lines) and content_lines[index]:
+                        while index < len(content_lines):
                             line = content_lines[index]
+                            if not line:
+                                index += 1
+                                continue
 
                             if "Requested labels: " in line:
-                                labels = line.split("Requested labels: ")[1].split(", ")
+                                labels = [
+                                    lbl.strip()
+                                    for lbl in line.split("Requested labels: ")[1]
+                                    .strip()
+                                    .split(", ")
+                                ]
 
                             if "Runner name: " in line:
-                                runner_name = line.split("Runner name: ")[1].replace(
-                                    "'", ""
+                                runner_name = (
+                                    line.split("Runner name: ")[1]
+                                    .replace("'", "")
+                                    .strip()
                                 )
 
                             if "Machine name: " in line:
-                                machine_name = line.split("Machine name: ")[1].replace(
-                                    "'", ""
+                                machine_name = (
+                                    line.split("Machine name: ")[1]
+                                    .replace("'", "")
+                                    .strip()
                                 )
 
                             if "Runner group name:" in line:
-                                runner_group = line.split("Runner group name: ")[
-                                    1
-                                ].replace("'", "")
+                                runner_group = (
+                                    line.split("Runner group name: ")[1]
+                                    .replace("'", "")
+                                    .strip()
+                                )
 
                             if "Job is about to start running on" in line:
-                                runner_type = line.split()[-1]
+                                runner_type = line.split()[-1].strip()
                                 matches = ApiBase.RUNNERTYPE_RE.search(runner_type)
                                 if matches:
                                     runner_type = matches.group(1)
@@ -408,13 +434,29 @@ class ApiBase:
         return None
 
     async def _get_full_runlog(self, log_content: bytes, run_name: str) -> str | None:
-        """Return the full text of the ``0_<run_name>`` log entry, if present."""
+        """Return the full text of a run log entry matching ``run_name``.
+
+        Handles both flat format (0_jobname.txt) and directory format
+        (jobname/system.txt or jobname/*.txt).
+        """
         with zipfile.ZipFile(io.BytesIO(log_content)) as runres:
             for zipinfo in runres.infolist():
-                if f"0_{run_name}" in zipinfo.filename:
-                    with runres.open(zipinfo) as run_log:
-                        content = run_log.read().decode()
-                        return content
+                # Match flat format: 0_jobname.txt or 1_jobname.txt
+                # or directory format: jobname/system.txt containing the run log
+                if (
+                    f"_{run_name}" in zipinfo.filename
+                    or f"{run_name}/" in zipinfo.filename
+                ):
+                    # In directory format, prefer the concatenated flat file
+                    # (0_run_name) if it exists, otherwise any file inside the
+                    # job directory works.
+                    if (
+                        f"0_{run_name}" in zipinfo.filename
+                        or f"{run_name}/" in zipinfo.filename
+                    ):
+                        with runres.open(zipinfo) as run_log:
+                            content = run_log.read().decode("utf-8-sig")
+                            return content
         return None
 
     async def _get_raw_file(self, repo: str, file_path: str, ref: str) -> str | None:

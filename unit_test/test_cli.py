@@ -158,6 +158,7 @@ async def test_cli_old_token(mock_enumerator, capfd):
         skip_admin_runners=False,
         github_url=None,
         ignore_workflow_run=False,
+        save_runlogs=None,
     )
 
     # Verify the enumerate_organization method was called
@@ -721,6 +722,7 @@ async def test_cli_skip_secrets_long_flag(mock_enumerator):
         skip_admin_runners=False,
         github_url=None,
         ignore_workflow_run=False,
+        save_runlogs=None,
     )
 
 
@@ -752,6 +754,7 @@ async def test_cli_skip_secrets_short_flag(mock_enumerator):
         skip_admin_runners=False,
         github_url=None,
         ignore_workflow_run=False,
+        save_runlogs=None,
     )
 
 
@@ -783,6 +786,7 @@ async def test_cli_skip_admin_runners_long_flag(mock_enumerator):
         skip_admin_runners=True,
         github_url=None,
         ignore_workflow_run=False,
+        save_runlogs=None,
     )
 
 
@@ -814,6 +818,7 @@ async def test_cli_skip_admin_runners_short_flag(mock_enumerator):
         skip_admin_runners=True,
         github_url=None,
         ignore_workflow_run=False,
+        save_runlogs=None,
     )
 
 
@@ -846,6 +851,7 @@ async def test_cli_defaults_skip_flags_to_false(mock_enumerator):
         skip_admin_runners=False,
         github_url=None,
         ignore_workflow_run=False,
+        save_runlogs=None,
     )
 
 
@@ -877,4 +883,62 @@ async def test_cli_both_skip_flags_together(mock_enumerator):
         skip_admin_runners=True,
         github_url=None,
         ignore_workflow_run=False,
+        save_runlogs=None,
+    )
+
+
+# ---------------------------------------------------------------------------
+# CLI flag parsing — --save-runlogs
+# ---------------------------------------------------------------------------
+
+
+async def test_save_runlogs_and_skip_runners_mutually_exclusive(capfd, tmp_path):
+    """--skip-runners and --save-runlogs should be mutually exclusive."""
+    os.environ["GH_TOKEN"] = "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+    runlogs_dir = str(tmp_path / "runlogs")
+    os.mkdir(runlogs_dir)
+
+    with pytest.raises(SystemExit):
+        await cli.cli(
+            ["enumerate", "-t", "test", "--skip-runners", "--save-runlogs", runlogs_dir]
+        )
+
+    _, err = capfd.readouterr()
+    assert "--skip-runners and --save-runlogs are mutually exclusive" in err
+
+
+@mock.patch("gatox.cli.cli.Enumerator")
+async def test_save_runlogs_flag_parsed(mock_enumerator, tmp_path):
+    """--save-runlogs should be parsed and forwarded to the Enumerator."""
+    os.environ["GH_TOKEN"] = "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+    runlogs_dir = str(tmp_path / "runlogs")
+    os.mkdir(runlogs_dir)
+
+    # Setup mock enumerator instance
+    mock_instance = mock_enumerator.return_value
+    mock_instance.api = mock.MagicMock()
+    mock_instance.api.user.check_user = AsyncMock(
+        return_value={
+            "user": "testUser",
+            "scopes": ["repo", "workflow"],
+        }
+    )
+    mock_instance.api.user.get_user_type = AsyncMock(return_value="Organization")
+    mock_instance.enumerate_organization = AsyncMock(return_value={"testOrg": "data"})
+    mock_instance.user_perms = {"user": "testUser", "scopes": ["repo", "workflow"]}
+
+    await cli.cli(["enumerate", "-t", "test", "--save-runlogs", runlogs_dir])
+
+    mock_enumerator.assert_called_once_with(
+        "gho_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        socks_proxy=None,
+        http_proxy=None,
+        skip_log=False,
+        skip_secrets=False,
+        skip_admin_runners=False,
+        github_url=None,
+        ignore_workflow_run=False,
+        save_runlogs=runlogs_dir,
     )

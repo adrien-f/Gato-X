@@ -84,6 +84,13 @@ def configure_parser_enumerate(parser):
     )
 
     parser.add_argument(
+        "--save-runlogs",
+        help="Save downloaded run log zip files to the specified directory during enumeration.",
+        type=WriteableDir(),
+        default=None,
+    )
+
+    parser.add_argument(
         "--machine",
         help=(
             "Run with a GitHub App token, which will allow running single repository\n"

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
+import os
 import zipfile
 from datetime import datetime, timedelta
 
@@ -40,7 +41,10 @@ class ActionApi(SubApi):
     # Workflow runs
     # ---------------------------------------------------------------
     async def retrieve_run_logs(
-        self, repo_name: str, workflows: list | set | None = None
+        self,
+        repo_name: str,
+        workflows: list | set | None = None,
+        save_runlogs_dir: str | None = None,
     ):
         """Walk recent workflow runs and parse their setup logs.
 
@@ -49,6 +53,12 @@ class ActionApi(SubApi):
         extract runner metadata (name / machine / labels / token
         permissions). The first non-ephemeral runner short-circuits the
         loop.
+
+        Args:
+            repo_name: Repository in org/repo format.
+            workflows: List of workflow IDs to sample runs from.
+            save_runlogs_dir: If set, save downloaded run log zip files
+                to this directory.
 
         Returns:
             ``dict_values`` of unique ``machine_name:runner_name``
@@ -100,6 +110,13 @@ class ActionApi(SubApi):
             )
 
             if run_log.status_code == 200:
+                if save_runlogs_dir:
+                    safe_repo = repo_name.replace("/", "_")
+                    zip_path = os.path.join(
+                        save_runlogs_dir, f"{safe_repo}_{run['id']}.zip"
+                    )
+                    with open(zip_path, "wb") as f:
+                        f.write(run_log.content)
                 try:
                     parsed = await self._base._process_run_log(run_log.content, run)
                     if parsed:
